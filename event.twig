@@ -1,0 +1,16 @@
+BEGIN:VEVENT
+UID:{{ uid }}
+SUMMARY:{{ summary|raw }}
+{% if location %}
+LOCATION:{{ location }}
+{% endif %}
+{% if description %}
+DESCRIPTION:{{ description|escape }}
+{% endif %}
+DTSTAMP;TZID={{ startTime }}
+DTSTART;TZID={{ startTime }}
+{% if endTime %}
+DTEND;TZID={{ endTime }}
+{% endif %}
+URL;TYPE=URI:{{ url }}
+END:VEVENT

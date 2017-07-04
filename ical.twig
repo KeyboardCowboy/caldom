@@ -1,0 +1,9 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//keyboardcowboy/soccercal//NONSGML v1.0//EN
+METHOD:PUBLISH
+X-WR-CALNAME;VALUE=TEXT:{{ title|raw }}
+{%  for event in events %}
+{{ event }}
+{%  endfor %}
+END:VCALENDAR
