@@ -1,15 +1,110 @@
 <?php
 /**
  * @file
- * Generate an iCal feed for US Soccer.
+ * Generate an iCal feed from an HTML DOM.
  */
 
-require_once __DIR__ . '/SoccerCalEvent.php';
+namespace CalDom\Calendar;
+
+use Artack\DOMQuery\DOMQuery;
+use CalDom\Event\Event;
+use CalDom\Renderer\Renderer;
+
+class Calendar {
+
+  /**
+   * The YAML data for this cal.
+   *
+   * @var array
+   */
+  protected $calInfo;
+
+  /**
+   * The DOMQuery object for the page.
+   *
+   * @var DOMQuery
+   */
+  protected $document;
+
+  /**
+   * Events objects extracted from the DOM.
+   *
+   * @var array
+   */
+  protected $events = [];
+
+  /**
+   * Calendar constructor.
+   *
+   * @param array $cal_data
+   *   Imported YAML data for the calendar.
+   */
+  protected function __construct(array $cal_data) {
+    $this->calInfo = $cal_data;
+    $this->fetchDocument();
+    $this->extractEvents();
+  }
+
+  /**
+   * Fetch the DOM of a schedule page.
+   */
+  private function fetchDocument() {
+    if ($contents = file_get_contents($this->calInfo['url'])) {
+      $this->document = DOMQuery::create($contents);
+    }
+    else {
+      throw new \Exception("Failed to fetch data from url.");
+    }
+  }
+
+  /**
+   * Extract event objects from the DOM.
+   */
+  private function extractEvents() {
+    foreach ($this->document->find($this->calInfo['events']['selector']) as $event_dom) {
+      $this->events[] = new Event($this, $event_dom, $this->calInfo['events']);
+    }
+  }
+
+  /**
+   * Create the subscribable calendar file.
+   */
+  public function generateCalendar() {
+    $calendar = $this->render();
+
+    // Store the URL.
+    $path = __DIR__ . "/../calendars/{$this->calInfo->name}.ics";
+
+    // Create the calendar.
+    if (!file_put_contents($path, $calendar)) {
+      throw new \Exception("Failed to save updated calendar.");
+    }
+  }
+
+  /**
+   * Render the ical file.
+   */
+  public function render() {
+    $twig = Renderer::load()->twig;
+    $vars = [];
+
+    // Calendar title.
+    $vars['title'] = $this->calInfo->title;
+
+    // Build events.
+    foreach ($this->events as $event) {
+      $vars['events'][] = $event->render();
+    }
+
+    return $twig->render('ical.twig', $vars);
+  }
+
+}
 
 /**
- * Class SoccerCal.
+ * Class Calendar.
  */
-class SoccerCal {
+class OldCalendar {
   // Hostname for the US Soccer website.
   const USSOCCER_HOSTNAME = 'http://www.ussoccer.com';
 
@@ -115,7 +210,7 @@ class SoccerCal {
         $cells = $tr->getElementsByTagName('td');
 
         if ($cells->length > 0) {
-          $this->events[] = new SoccerCalEvent($this, $cells);
+          $this->events[] = new Event($this, $cells);
         }
       }
     }

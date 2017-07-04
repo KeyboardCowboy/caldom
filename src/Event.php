@@ -1,17 +1,100 @@
 <?php
 /**
  * @file
- * Contains \SoccerCalEvent.
+ * Contains \Event.
  */
 
-/**
- * Build events for US Soccer matches.
- */
+namespace CalDom\Event;
+
+use Artack\DOMQuery\DOMQuery;
+use CalDom\Calendar\Calendar;
+
+class Event {
+
+  /**
+   * @var Calendar
+   */
+  protected $cal;
+
+  /**
+   * @var DOMQuery
+   */
+  protected $eventDom;
+
+  /**
+   * @var array
+   */
+  protected $eventInfo;
+
+  /**
+   * Fields needed for the events.
+   *
+   * @var array
+   */
+  protected $fields = array(
+    'title' => '',
+    'description' => '',
+    'starttime' => '',
+    'endtime' => '',
+    'timezone' => '',
+    'location' => '',
+  );
+
+  /**
+   * Event constructor.
+   *
+   * @param $event_dom
+   * @param $event_info
+   */
+  public function __construct(Calendar $cal, $event_dom, $event_info) {
+    $this->cal = $cal;
+    $this->eventDom = DOMQuery::create($event_dom);
+    $this->eventInfo = $event_info;
+    $this->extractData();
+  }
+
+  /**
+   * Use the YAML info to create the event parameters.
+   */
+  private function extractData() {
+    try {
+      foreach ($this->fields as $field => &$value) {
+        if (isset($this->eventInfo[$field])) {
+          $element = $this->eventDom->find($this->eventInfo[$field]['selector']);
+
+          if (isset($this->eventInfo[$field]['attribute'])) {
+            $value = $element->getAttribute($this->eventInfo[$field]['attribute']);
+          }
+          else {
+            $value = $element->getInnerHtml();
+          }
+        }
+
+        // Format some values specifically.
+        if (in_array($field, ['starttime', 'endtime'])) {
+          $value = new \DateTime(strtotime($value));
+        }
+
+        // Allow extending classes to implement alteration methods to clean up the
+        // data before it is stored.
+        $alter = "process" . ucwords($field);
+        if (method_exists($this->cal, $alter)) {
+          $this->cal->{$alter}($value, $this->eventInfo[$field]);
+        }
+      }
+    }
+    catch (\Exception $e) {
+      // @todo: Setup proper logger.
+      print ($e->getMessage());
+    }
+  }
+
+}
 
 /**
- * Class SoccerCalEvent.
+ * Class Event.
  */
-class SoccerCalEvent {
+class OldEvent {
   // The SoccerCal object that manages the event.
   private $cal;
 
@@ -48,10 +131,10 @@ class SoccerCalEvent {
   /**
    * SoccerCalEvent constructor.
    *
-   * @param \SoccerCal $cal
+   * @param \Calendar $cal
    * @param \DOMNodeList $cells
    */
-  public function __construct(SoccerCal $cal, DOMNodeList $cells) {
+  public function __construct(Calendar $cal, DOMNodeList $cells) {
     $this->cal = $cal;
     $this->extractData($cells);
   }
@@ -126,7 +209,7 @@ class SoccerCalEvent {
     // Store the URL to the event.
     $attributes = $cell->getElementsByTagName('a')->item(0)->attributes;
     $url = $attributes->getNamedItem('href')->value;
-    $this->url = SoccerCal::USSOCCER_HOSTNAME . $url;
+    $this->url = Calendar::USSOCCER_HOSTNAME . $url;
 
     return $value;
   }
@@ -292,7 +375,7 @@ class SoccerCalEvent {
 
     // Add extracted URLs.
     foreach ($this->links as $href => $text) {
-      $url = (stripos($href, 'http') === 0) ? $href : SoccerCal::USSOCCER_HOSTNAME . $href;
+      $url = (stripos($href, 'http') === 0) ? $href : Calendar::USSOCCER_HOSTNAME . $href;
 
       $out[] = $text . ':\n' . $url;
     }

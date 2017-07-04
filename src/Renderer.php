@@ -4,6 +4,8 @@
  * Contains \Renderer.
  */
 
+namespace CalDom\Renderer;
+
 /**
  * Event renderer.
  */
@@ -16,8 +18,8 @@ class Renderer {
    */
   public function __construct() {
     // Load the twig renderer.
-    $loader = new Twig_Loader_Filesystem(__DIR__ . '/../templates');
-    $this->twig = new Twig_Environment($loader);
+    $loader = new \Twig_Loader_Filesystem(__DIR__ . '/../templates');
+    $this->twig = new \Twig_Environment($loader);
   }
 
   /**

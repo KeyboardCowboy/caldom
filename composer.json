@@ -1,0 +1,25 @@
+{
+    "name": "keyboardcowboy/caldom",
+    "description": "Generate webcal feeds by scraping HTML pages.",
+    "type": "library",
+    "require": {
+        "symfony/yaml": "~3.1.0",
+        "twig/twig": "~1.0",
+        "artack/dom-query": "^0.1.0",
+        "symfony/css-selector": "~2.0"
+    },
+    "license": "GNU 3+",
+    "authors": [
+        {
+            "name": "KeyboardCowboy",
+            "email": "chris@lullabot.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "CalDom\\Calendar\\": "src/",
+            "CalDom\\Event\\": "src/",
+            "CalDom\\Renderer\\": "src/"
+        }
+    }
+}
