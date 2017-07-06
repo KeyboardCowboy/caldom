@@ -11,6 +11,8 @@ use CalDom\Calendar\Calendar;
 
 class Event {
 
+  const DEFAULT_TIMEZONE = 'America/New_York';
+
   /**
    * @var Calendar
    */
@@ -29,16 +31,46 @@ class Event {
   /**
    * Fields needed for the events.
    *
+   * Field will be processed in the order listed here.  Make sure timezone
+   * is always processed before other datetime fields.
+   *
    * @var array
    */
-  protected $fields = array(
-    'title' => '',
-    'description' => '',
-    'starttime' => '',
-    'endtime' => '',
-    'timezone' => '',
-    'location' => '',
-  );
+  private $dataFields = [
+    'title',
+    'description',
+    'timezone',
+    'starttime',
+    'endtime',
+    'location',
+    'url',
+  ];
+
+  /**
+   * Formatted values the event template.
+   *
+   * @var string
+   */
+  private $title = '';
+  private $description = '';
+  private $location = '';
+  private $timezone = '';
+
+  /**
+   * @var \DateTime
+   */
+  private $startTime;
+
+  /**
+   * @var \DateTime
+   */
+  private $endTime;
+  private $url = '';
+
+  /**
+   * @var bool
+   */
+  private $allDay = FALSE;
 
   /**
    * Event constructor.
@@ -53,39 +85,230 @@ class Event {
     $this->extractData();
   }
 
+
   /**
-   * Use the YAML info to create the event parameters.
+   * @return string
+   */
+  public function getTitle() {
+    return $this->title;
+  }
+
+  /**
+   * @return string
+   */
+  public function getDescription() {
+    return $this->description;
+  }
+
+  /**
+   * @return string
+   */
+  public function getLocation() {
+    return $this->location;
+  }
+
+  /**
+   * @return string
+   */
+  public function getTimezone() {
+    return $this->timezone;
+  }
+
+  /**
+   * @return \DateTime
+   */
+  public function getStartTime() {
+    return $this->startTime;
+  }
+
+  /**
+   * @return \DateTime
+   */
+  public function getEndTime() {
+    return $this->endTime;
+  }
+
+  /**
+   * @return string
+   */
+  public function getUrl() {
+    return $this->url;
+  }
+
+  /**
+   * Setter for $title.
+   *
+   * @param $value
+   */
+  public function setTitle($value) {
+    $this->title = html_entity_decode(trim(strip_tags($value)));
+  }
+
+  public function setDescription($value) {
+    $this->description = html_entity_decode(trim(strip_tags($value)));
+  }
+
+  public function setLocation($value) {
+    $this->location = html_entity_decode(trim(strip_tags($value)));
+  }
+
+  /**
+   * Set the timezone.
+   *
+   * @param string $value
+   *   A timezone abbreviation (EST) or full timezone code (America/New_York).
+   */
+  public function setTimezone($value) {
+    $tz_abbrev = \DateTimeZone::listAbbreviations();
+
+    // If no timezone is set, then we don't have a game time yet.
+    if ($value === 'TBD') {
+      $this->setAllDay();
+    }
+
+    // Convert 2 char US timezones to standard 3 char abbreviations.
+    if (in_array($value, ['ET', 'CT', 'MT', 'PT'])) {
+      $value = strtolower($value[0] . 'S' . $value[1]);
+    }
+
+    // Check for valid timezone abbreviations.
+    if (isset($tz_abbrev[$value])) {
+      $tz_array = reset($tz_abbrev[$value]);
+      $this->timezone = new \DateTimeZone($tz_array['timezone_id']);
+    }
+    // Check for a full timezone string.
+    elseif (preg_match('#^\w+/\w+$#', $value)) {
+      $this->timezone = new \DateTimeZone($value);
+    }
+    // Use the default.
+    else {
+      $this->timezone = new \DateTimeZone(static::DEFAULT_TIMEZONE);
+    }
+  }
+
+  /**
+   * Set the start time.
+   *
+   * @param $value
+   */
+  public function setStarttime($value) {
+    // Handle format YYYY-MM-DDTHH:MM:SSZ.
+    if (is_string($value) && (preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/', $value))) {
+      $value = str_replace('T', ' ', $value);
+      $value = str_replace('Z', '', $value);
+
+      $datetime = new \DateTime($value, $this->timezone);
+      $this->startTime = $datetime;
+    }
+    // Handle other strings.
+    elseif (is_string($value) && ($datetime = new \DateTime($value, $this->timezone))) {
+      $this->startTime = $datetime;
+    }
+    // Handle preset DateTime objects.
+    elseif (is_object($value) && get_class($value) === 'DateTime') {
+      $this->startTime = $value;
+    }
+    // Default.
+    else {
+      $this->startTime = new \DateTime('now', $this->timezone);
+    }
+  }
+
+  /**
+   * Set the end time.
+   *
+   * @param $value
+   */
+  public function setEndtime($value) {
+    // If a duration is specified, create an end time from the start time.
+    if (empty($value) && isset($this->eventInfo['endtime']['duration']) && $this->startTime instanceof \DateTime) {
+      $datetime = clone $this->startTime;
+      $datetime->add(\DateInterval::createFromDateString($this->eventInfo['endtime']['duration']));
+      $this->endTime = $datetime;
+    }
+    // Handle format YYYY-MM-DDTHH:MM:SSZ.
+    elseif (is_string($value) && (preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/', $value))) {
+      $value = str_replace('T', ' ', $value);
+      $value = str_replace('Z', '', $value);
+
+      $datetime = new \DateTime($value, $this->timezone);
+      $this->endTime = $datetime;
+    }
+    // Handle other strings.
+    elseif (is_string($value) && ($datetime = new \DateTime($value, $this->timezone))) {
+      $this->endTime = $datetime;
+    }
+    // Handle preset DateTime objects.
+    elseif (is_object($value) && get_class($value) === 'DateTime') {
+      $this->endTime = $value;
+    }
+    // Default.
+    else {
+      $this->endTime = new \DateTime('now', $this->timezone);
+    }
+  }
+
+  /**
+   * Set a URL for the event.
+   *
+   * @param $value
+   */
+  public function setUrl($value) {
+    $this->url = $this->cal->setUrlHost($value);
+  }
+
+  /**
+   * Make an event an all-day event or not.
+   *
+   * @param bool $value
+   */
+  public function setAllDay($value = TRUE) {
+    $this->allDay = $value;
+  }
+
+  /**
+   * Extract data from the DOM using instructions from the YAML file.
    */
   private function extractData() {
+    $raw = [];
+
+    // Collect raw values from the DOM.
     try {
-      foreach ($this->fields as $field => &$value) {
-        if (isset($this->eventInfo[$field])) {
+      foreach ($this->dataFields as $field) {
+        $raw[$field] = '';
+
+        // Use the CSS selectors to find and populate each available field.
+        if (isset($this->eventInfo[$field]['selector'])) {
           $element = $this->eventDom->find($this->eventInfo[$field]['selector']);
 
+          // Check for an element attribute value.
           if (isset($this->eventInfo[$field]['attribute'])) {
-            $value = $element->getAttribute($this->eventInfo[$field]['attribute']);
+            $raw[$field] = $element->getAttribute($this->eventInfo[$field]['attribute']);
           }
+          // Use the innerHTML or text value of the element.
           else {
-            $value = $element->getInnerHtml();
+            $raw[$field] = $element->getInnerHtml();
           }
-        }
-
-        // Format some values specifically.
-        if (in_array($field, ['starttime', 'endtime'])) {
-          $value = new \DateTime(strtotime($value));
-        }
-
-        // Allow extending classes to implement alteration methods to clean up the
-        // data before it is stored.
-        $alter = "process" . ucwords($field);
-        if (method_exists($this->cal, $alter)) {
-          $this->cal->{$alter}($value, $this->eventInfo[$field]);
         }
       }
     }
     catch (\Exception $e) {
       // @todo: Setup proper logger.
       print ($e->getMessage());
+    }
+
+    // Process and store data.
+    foreach ($raw as $field => $value) {
+      // Allow extending classes to implement alteration methods to clean up
+      // the data before it is stored.
+      $processor = 'process' . ucwords($field);
+      if (method_exists($this->cal, $processor)) {
+        $value = $this->cal->{$processor}($value, $this);
+      }
+
+      // Store the value.
+      $setter = 'set' . ucwords($field);
+      $this->{$setter}($value);
     }
   }
 

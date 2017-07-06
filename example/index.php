@@ -1,13 +1,17 @@
 <?php
+/**
+ * @file
+ * Example webcal for US Soccer schedules.
+ */
 
 namespace USMNTCal;
 
 require_once __DIR__ . '/../src/init.php';
-require_once __DIR__ . '/../vendor/autoload.php';
 
 use Symfony\Component\Yaml\Yaml;
 use Symfony\Component\Yaml\Exception\ParseException;
 use CalDom\Calendar\Calendar;
+use CalDom\Event\Event;
 
 /**
  * Class USSoccerCal
@@ -20,6 +24,8 @@ class USSoccerCal extends Calendar {
    * @param $file
    *
    * @return static
+   *
+   * @todo: Generalize this into the parent.
    */
   public static function create($file) {
     try {
@@ -32,8 +38,24 @@ class USSoccerCal extends Calendar {
     }
   }
 
-  public function processStartdate(&$value, $info) {
-    $value = strtotime($value);
+  /**
+   * Process the timezone for US Soccer schedule.
+   *
+   * @param $value
+   * @param \CalDom\Event\Event $event
+   *
+   * @return mixed
+   */
+  public function processTimezone($value, Event $event) {
+    $parts = explode(' ', $value);
+    $tz = array_pop($parts);
+
+    return $tz;
+  }
+
+  public function __destruct() {
+    unset($this->document);
+    dump($this->events);
   }
 
 }

@@ -1,6 +1,6 @@
-name: "usmnt"
-title: "US Soccer MNT"
-url: "http:\/\/www.ussoccer.com\/mens-national-team\/schedule-tickets"
+name: 'usmnt'
+title: 'US Soccer MNT'
+url: 'http://www.ussoccer.com/mens-national-team/schedule-tickets'
 base_url: 'http://www.ussoccer.com'
 events:
   selector: 'table.match-table tr.team-MNT'
@@ -16,4 +16,10 @@ events:
   starttime:
     selector: 'time[itemprop="startDate"]'
     attribute: 'datetime'
-  duration: "2 hours"
+  endtime:
+    duration: "+2 hours"
+  timezone:
+    selector: 'td:nth-child(2)'
+  url:
+    selector: 'td:nth-child(3) a'
+    attribute: 'href'

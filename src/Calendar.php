@@ -99,6 +99,17 @@ class Calendar {
     return $twig->render('ical.twig', $vars);
   }
 
+  /**
+   * Ensure a URL has a hostname.
+   *
+   * @param $url
+   *
+   * @return string
+   */
+  public function setUrlHost($url) {
+    return stripos($url, 'http') === 0 ? $url : rtrim($this->calInfo['base_url'], '/') . '/' . ltrim($url, '/');
+  }
+
 }
 
 /**
