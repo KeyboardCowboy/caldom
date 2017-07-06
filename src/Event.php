@@ -8,10 +8,13 @@ namespace CalDom\Event;
 
 use Artack\DOMQuery\DOMQuery;
 use CalDom\Calendar\Calendar;
+use CalDom\Renderer\Renderer;
 
 class Event {
 
   const DEFAULT_TIMEZONE = 'America/New_York';
+
+  const DATE_FORMAT_ICAL = 'ical';
 
   /**
    * @var Calendar
@@ -54,7 +57,11 @@ class Event {
   private $title = '';
   private $description = '';
   private $location = '';
-  private $timezone = '';
+
+  /**
+   * @var \DateTimeZone
+   */
+  private $timezone;
 
   /**
    * @var \DateTime
@@ -110,22 +117,22 @@ class Event {
   /**
    * @return string
    */
-  public function getTimezone() {
-    return $this->timezone;
+  public function getTimezone($format = null) {
+    return $format === self::DATE_FORMAT_ICAL ? $this->timezone->getName() : $this->timezone;
   }
 
   /**
-   * @return \DateTime
+   * @return \DateTime|string
    */
-  public function getStartTime() {
-    return $this->startTime;
+  public function getStartTime($format = null) {
+    return $format === self::DATE_FORMAT_ICAL ? $this->formatDateTime($this->startTime, $this->allDay) : $this->startTime;
   }
 
   /**
-   * @return \DateTime
+   * @return \DateTime|string
    */
-  public function getEndTime() {
-    return $this->endTime;
+  public function getEndTime($format = null) {
+    return $format === self::DATE_FORMAT_ICAL ? $this->formatDateTime($this->endTime, $this->allDay) : $this->endTime;
   }
 
   /**
@@ -133,6 +140,10 @@ class Event {
    */
   public function getUrl() {
     return $this->url;
+  }
+
+  private function getUid() {
+    return $this->cal->getCalInfo('name') . '-' . $this->getStartTime(self::DATE_FORMAT_ICAL);
   }
 
   /**
@@ -310,6 +321,45 @@ class Event {
       $setter = 'set' . ucwords($field);
       $this->{$setter}($value);
     }
+  }
+
+  /**
+   * Render the ical event.
+   *
+   * @return string
+   *   The formatted ical event.
+   */
+  public function render() {
+    $twig = Renderer::load()->twig;
+
+    $vars = [
+      'uid' => $this->getUid(),
+      'title' => $this->getTitle(),
+      'description' => $this->getDescription(),
+      'location' => $this->getLocation(),
+      'url' => $this->getUrl(),
+      'startTime' => $this->getStartTime(self::DATE_FORMAT_ICAL),
+      'endTime' => $this->getEndTime(self::DATE_FORMAT_ICAL),
+    ];
+
+    return $twig->render('event.twig', $vars);
+  }
+
+  /**
+   * Format the $datetime parameter for ical usage.
+   *
+   * @param \DateTime $datetime
+   *   An event date.
+   * @param bool $allday
+   *   TRUE to print the timestamp with just the date (time TBD).
+   *
+   * @return string
+   *   The timestamp with timezone prepended.
+   */
+  protected function formatDateTime(\DateTime $datetime, $allday = TRUE) {
+    $date = $allday ? $datetime->format('Ymd') : $datetime->format('Ymd\THis');
+
+    return $this->getTimezone(self::DATE_FORMAT_ICAL) . ':' . $date;
   }
 
 }

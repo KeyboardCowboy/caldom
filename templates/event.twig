@@ -5,7 +5,7 @@ SUMMARY:{{ title|raw }}
 LOCATION:{{ location }}
 {% endif %}
 {% if description %}
-DESCRIPTION:{{ description|escape }}
+DESCRIPTION:{{ description|e }}
 {% endif %}
 DTSTAMP;TZID={{ startTime }}
 DTSTART;TZID={{ startTime }}

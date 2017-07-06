@@ -5,10 +5,10 @@ base_url: 'http://www.ussoccer.com'
 events:
   selector: 'table.match-table tr.team-MNT'
   title:
-    selector: 'td:nth-child(3) meta'
+    selector: 'td:nth-child(3) meta[itemprop="name"]'
     attribute: 'content'
   location:
-    selector: 'td[itemprop="location"] meta[itemprop="name"]'
+    selector: 'td:nth-child(4) meta[itemprop="name"]'
     attribute: 'content'
   description:
     selector: 'td:nth-child(5)'

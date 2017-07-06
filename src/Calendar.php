@@ -6,6 +6,8 @@
 
 namespace CalDom\Calendar;
 
+use Symfony\Component\Yaml\Yaml;
+use Symfony\Component\Yaml\Exception\ParseException;
 use Artack\DOMQuery\DOMQuery;
 use CalDom\Event\Event;
 use CalDom\Renderer\Renderer;
@@ -46,6 +48,25 @@ class Calendar {
   }
 
   /**
+   * @param $file
+   *
+   * @return static
+   *
+   * @todo: Generalize this into the parent.
+   */
+  public static function create($file) {
+    try {
+      $data = Yaml::parse(file_get_contents($file));
+      $calendar = new static($data);
+
+      return $calendar;
+
+    } catch (ParseException $e) {
+      printf("Unable to parse the YAML file: %s", $e->getMessage());
+    }
+  }
+
+  /**
    * Fetch the DOM of a schedule page.
    */
   private function fetchDocument() {
@@ -69,15 +90,18 @@ class Calendar {
   /**
    * Create the subscribable calendar file.
    */
-  public function generateCalendar() {
+  public function generateCalendar($dir = '') {
     $calendar = $this->render();
 
     // Store the URL.
-    $path = __DIR__ . "/../calendars/{$this->calInfo->name}.ics";
+    $path = rtrim($dir, '/') . '/' . $this->calInfo['name'] . '.ics';
 
     // Create the calendar.
     if (!file_put_contents($path, $calendar)) {
       throw new \Exception("Failed to save updated calendar.");
+    }
+    else {
+      print "Calendar '{$this->calInfo['name']}.ics' successfully created!";
     }
   }
 
@@ -89,7 +113,7 @@ class Calendar {
     $vars = [];
 
     // Calendar title.
-    $vars['title'] = $this->calInfo->title;
+    $vars['title'] = $this->calInfo['title'];
 
     // Build events.
     foreach ($this->events as $event) {
@@ -108,6 +132,24 @@ class Calendar {
    */
   public function setUrlHost($url) {
     return stripos($url, 'http') === 0 ? $url : rtrim($this->calInfo['base_url'], '/') . '/' . ltrim($url, '/');
+  }
+
+  /**
+   * Get a value from the $calinfo array.
+   *
+   * @param string $param
+   *   An optional parameter from the calInfo object.
+   *
+   * @return mixed
+   *   A value from the calInfo array or the whole array itself.
+   */
+  public function getCalInfo($param = NULL) {
+    if (isset($param)) {
+      return isset($this->calInfo[$param]) ? $this->calInfo[$param] : NULL;
+    }
+    else {
+      return $this->calInfo;
+    }
   }
 
 }
