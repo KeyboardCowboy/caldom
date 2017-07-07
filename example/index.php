@@ -98,5 +98,5 @@ class GoldCupCal extends Calendar {
 }
 
 // Create the calendars.
-USSoccerCal::create(__DIR__ . '/usmnt.yml')->generateCalendar( __DIR__ . '/calendars/');
-GoldCupCal::create(__DIR__ . '/gc.yml')->generateCalendar( __DIR__ . '/calendars/');
+USSoccerCal::load(__DIR__ . '/usmnt.yml')->generateCalendar( __DIR__ . '/calendars/');
+GoldCupCal::load(__DIR__ . '/gc.yml')->generateCalendar( __DIR__ . '/calendars/');

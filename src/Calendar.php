@@ -7,7 +7,6 @@
 namespace CalDom\Calendar;
 
 use Symfony\Component\Yaml\Yaml;
-use Symfony\Component\Yaml\Exception\ParseException;
 use Artack\DOMQuery\DOMQuery;
 use CalDom\Event\Event;
 use CalDom\Renderer\Renderer;
@@ -20,6 +19,13 @@ class Calendar {
    * @var array
    */
   protected $calInfo;
+
+  /**
+   * The filesystem path to the .ics file.
+   *
+   * @var string
+   */
+  protected $calPath;
 
   /**
    * The DOMQuery objects for the pages.
@@ -43,6 +49,20 @@ class Calendar {
    */
   protected function __construct(array $cal_data) {
     $this->calInfo = $cal_data;
+
+    // Create the destination path so we can reference it later if the build
+    // breaks.
+    $rel_path = isset($cal_data['file']) ? $cal_data['file'] : '/calendars/' . $cal_data['name'] . '.ics';
+    $this->calPath = $_SERVER['DOCUMENT_ROOT'] . $rel_path;
+  }
+
+  /**
+   * Get the full path to the calendar.
+   *
+   * @return string
+   */
+  public function getCalPath() {
+    return $this->calPath;
   }
 
   /**
@@ -56,11 +76,16 @@ class Calendar {
    */
   public static function load($file) {
     try {
+      if (!file_exists($file)) {
+        throw new \Exception("Unable to locate file.");
+      }
+
       $data = Yaml::parse(file_get_contents($file));
       return new static($data);
 
-    } catch (ParseException $e) {
-      printf("Unable to parse the YAML file: %s", $e->getMessage());
+    } catch (\Exception $e) {
+      // @todo: Log this.
+      printf("Calendar error: %s", $e->getMessage());
     }
   }
 
@@ -69,7 +94,7 @@ class Calendar {
    */
   private function fetchDocuments() {
     foreach ((array) $this->calInfo['url'] as $url) {
-      if ($contents = file_get_contents($url)) {
+      if ($contents = @file_get_contents($url)) {
         $this->documents[] = $this->prepareDocument(DOMQuery::create($contents));
       }
       else {
@@ -102,22 +127,23 @@ class Calendar {
 
   /**
    * Create the subscribable calendar file.
+   *
+   * @throws \Exception
+   *   If the file can't be written.
    */
-  public function generateCalendar($dir = '') {
-    $this->fetchDocuments();
-    $this->extractEvents();
+  public function generateCalendar() {
+    try {
+      $this->fetchDocuments();
+      $this->extractEvents();
 
-    $calendar = $this->render();
-
-    // Store the URL.
-    $path = rtrim($dir, '/') . '/' . $this->calInfo['name'] . '.ics';
-
-    // Create the calendar.
-    if (!file_put_contents($path, $calendar)) {
-      throw new \Exception("Failed to save updated calendar.");
+      // Create the calendar.
+      if (!@file_put_contents($this->calPath, $this->render())) {
+        throw new \Exception("Failed to save updated calendar.");
+      }
     }
-    else {
-      print "Calendar '{$this->calInfo['name']}.ics' successfully created!";
+    catch (\Exception $e) {
+      // @todo: Properly log this.
+      print $e->getMessage();
     }
   }
 
