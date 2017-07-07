@@ -1,0 +1,26 @@
+name: 'goldcup2017'
+title: 'CONCACAF Gold Cup 2017'
+url:
+  - 'http://www.foxsports.com/soccer/schedule?competition=32&season=2017&round=1&group=0'
+  - 'http://www.foxsports.com/soccer/schedule?competition=32&season=2017&round=2&group=0'
+  - 'http://www.foxsports.com/soccer/schedule?competition=32&season=2017&round=3&group=0'
+  - 'http://www.foxsports.com/soccer/schedule?competition=32&season=2017&round=4&group=0'
+base_url: 'http://www.foxsports.com'
+events:
+  selector: '.wisbb_scheduleTable tbody tr'
+  title:
+    selector: '.wisbb_fullTeamStacked span:nth-of-type(2)'
+    join: " vs "
+  location:
+    selector: '.wisbb_location'
+  description:
+    selector: '.wisbb_network'
+  starttime:
+    selector: '.wisbb_gameInfo a span:nth-child(2)'
+  endtime:
+    duration: "+2 hours"
+  timezone:
+    selector: '.wisbb_gameInfo a span:nth-child(2)'
+  url:
+    selector: '.wisbb_gameInfo a'
+    attribute: 'href'

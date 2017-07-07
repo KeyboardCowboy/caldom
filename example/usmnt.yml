@@ -12,7 +12,6 @@ events:
     attribute: 'content'
   description:
     selector: 'td:nth-child(5)'
-    text_label: "Watch"
   starttime:
     selector: 'time[itemprop="startDate"]'
     attribute: 'datetime'

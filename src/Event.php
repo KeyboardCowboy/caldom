@@ -156,7 +156,34 @@ class Event {
   }
 
   public function setDescription($value) {
-    $this->description = html_entity_decode(trim(strip_tags($value)));
+    // Extract all links.
+    $element = DOMQuery::create('<div>' . $value . '</div>');
+    $links = [];
+
+    foreach ($element->find('a') as $link) {
+      $links[$link->getAttribute('href')] = $link->getNodes()[0]->textContent;
+      $link->remove();
+    }
+
+    // Remove any other nodes from the element.
+    $texts = [];
+    foreach ($element->getChildren() as $child) {
+      foreach ($child->getNodes() as $node) {
+        if ($node->nodeName === '#text' && ($text = trim($node->textContent))) {
+          $texts[] = $text;
+        }
+      }
+    }
+
+    // First, add the text value.
+    $description[] = implode("\\n", $texts);
+
+    // Add the links.
+    foreach ($links as $url => $text) {
+      $description[] = $text . ':' . "\\n" . $url;
+    }
+
+    $this->description = implode("\\n\\n", $description);
   }
 
   public function setLocation($value) {
@@ -214,6 +241,11 @@ class Event {
     // Handle other strings.
     elseif (is_string($value) && ($datetime = new \DateTime($value, $this->timezone))) {
       $this->startTime = $datetime;
+    }
+    // Handle UNIX timestamps.
+    elseif (is_numeric($value)) {
+      $date_string = date('Y-m-d\TH:i:s', $value);
+      $this->startTime = new \DateTime($date_string, $this->timezone);
     }
     // Handle preset DateTime objects.
     elseif (is_object($value) && get_class($value) === 'DateTime') {
@@ -286,19 +318,20 @@ class Event {
     // Collect raw values from the DOM.
     try {
       foreach ($this->dataFields as $field) {
-        $raw[$field] = '';
+        $raw[$field] = [];
 
         // Use the CSS selectors to find and populate each available field.
         if (isset($this->eventInfo[$field]['selector'])) {
-          $element = $this->eventDom->find($this->eventInfo[$field]['selector']);
+          foreach ($this->eventDom->find($this->eventInfo[$field]['selector']) as $element) {
 
-          // Check for an element attribute value.
-          if (isset($this->eventInfo[$field]['attribute'])) {
-            $raw[$field] = $element->getAttribute($this->eventInfo[$field]['attribute']);
-          }
-          // Use the innerHTML or text value of the element.
-          else {
-            $raw[$field] = $element->getInnerHtml();
+            // Check for an element attribute value.
+            if (isset($this->eventInfo[$field]['attribute'])) {
+              $raw[$field][] = $element->getAttribute($this->eventInfo[$field]['attribute']);
+            }
+            // Use the innerHTML or text value of the element.
+            else {
+              $raw[$field][] = $element->getInnerHtml();
+            }
           }
         }
       }
@@ -309,13 +342,11 @@ class Event {
     }
 
     // Process and store data.
-    foreach ($raw as $field => $value) {
+    foreach ($raw as $field => $values) {
       // Allow extending classes to implement alteration methods to clean up
       // the data before it is stored.
       $processor = 'process' . ucwords($field);
-      if (method_exists($this->cal, $processor)) {
-        $value = $this->cal->{$processor}($value, $this);
-      }
+      $value = $this->cal->{$processor}($values, $this);
 
       // Store the value.
       $setter = 'set' . ucwords($field);

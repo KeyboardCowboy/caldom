@@ -8,6 +8,7 @@ namespace USMNTCal;
 
 require_once __DIR__ . '/../src/init.php';
 
+use Artack\DOMQuery\DOMQuery;
 use CalDom\Calendar\Calendar;
 use CalDom\Event\Event;
 
@@ -19,15 +20,10 @@ use CalDom\Event\Event;
 class USSoccerCal extends Calendar {
 
   /**
-   * Process the timezone for US Soccer schedule.
-   *
-   * @param $value
-   * @param \CalDom\Event\Event $event
-   *
-   * @return mixed
+   * {@inheritdoc}
    */
-  public function processTimezone($value, Event $event) {
-    $parts = explode(' ', $value);
+  public function processTimezone(array $values, Event $event) {
+    $parts = explode(' ', $values[0]);
     $tz = array_pop($parts);
 
     return $tz;
@@ -35,13 +31,72 @@ class USSoccerCal extends Calendar {
 
 }
 
-USSoccerCal::create(__DIR__ . '/usmnt.yml')->generateCalendar( __DIR__ . '/calendars/');
-
 /**
- * Debugger.
+ * Class GoldCupCal
  *
- * @param $var
+ * @package USMNTCal
  */
-function dump($var) {
-  print '<pre>' . print_r($var,1 ) . '</pre>';
+class GoldCupCal extends Calendar {
+
+  /**
+   * {@inheritdoc}
+   */
+  public function prepareDocument(DOMQuery $document) {
+    $date = '';
+
+    // Add the date from the preceding table header to each match within the
+    // subsequent tbody element.
+    foreach ($document->find('table.wisbb_scheduleTable > *') as $table_element) {
+      $tag = $table_element->getNodes()[0]->tagName;
+
+      // If we hit a header, store the date.
+      if ($tag === 'thead') {
+        $date = $table_element->find('th')->getNodes()[0]->textContent;
+        continue;
+      }
+
+      // If we hit a body, add the date to each match's time.
+      if ($tag === 'tbody') {
+        foreach ($table_element->find($this->calInfo['events']['starttime']['selector']) as &$time) {
+          $time->replaceInner($date . ', ' . $time->getInnerHtml());
+        }
+      }
+    }
+
+    return parent::prepareDocument($document);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function processTimezone(array $values, Event $event) {
+    $parts = explode(' ', $values[0]);
+    $tz = array_pop($parts);
+
+    return $tz;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function processStarttime(array $values, Event $event) {
+    $parts = explode(' ', $values[0]);
+
+    // Remove the timezone.
+    array_pop($parts);
+    $date = implode(' ', $parts);
+
+    // Make sure the ToD is am or pm, and not the shorthand.
+    if (substr($date, -1) !== 'm') {
+      $date .= 'm';
+    }
+
+    // Break it down into a timestamp.
+    return strtotime($date);
+  }
+
 }
+
+// Create the calendars.
+USSoccerCal::create(__DIR__ . '/usmnt.yml')->generateCalendar( __DIR__ . '/calendars/');
+GoldCupCal::create(__DIR__ . '/gc.yml')->generateCalendar( __DIR__ . '/calendars/');

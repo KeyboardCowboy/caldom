@@ -22,11 +22,11 @@ class Calendar {
   protected $calInfo;
 
   /**
-   * The DOMQuery object for the page.
+   * The DOMQuery objects for the pages.
    *
-   * @var DOMQuery
+   * @var array
    */
-  protected $document;
+  protected $documents;
 
   /**
    * Events objects extracted from the DOM.
@@ -43,7 +43,8 @@ class Calendar {
    */
   protected function __construct(array $cal_data) {
     $this->calInfo = $cal_data;
-    $this->fetchDocument();
+
+    $this->fetchDocuments();
     $this->extractEvents();
   }
 
@@ -51,8 +52,6 @@ class Calendar {
    * @param $file
    *
    * @return static
-   *
-   * @todo: Generalize this into the parent.
    */
   public static function create($file) {
     try {
@@ -69,21 +68,36 @@ class Calendar {
   /**
    * Fetch the DOM of a schedule page.
    */
-  private function fetchDocument() {
-    if ($contents = file_get_contents($this->calInfo['url'])) {
-      $this->document = DOMQuery::create($contents);
+  private function fetchDocuments() {
+    foreach ((array) $this->calInfo['url'] as $url) {
+      if ($contents = file_get_contents($url)) {
+        $this->documents[] = $this->prepareDocument(DOMQuery::create($contents));
+      }
+      else {
+        throw new \Exception("Failed to fetch data from url.");
+      }
     }
-    else {
-      throw new \Exception("Failed to fetch data from url.");
-    }
+  }
+
+  /**
+   * Allow extending classes to manipulate the document.
+   *
+   * @param DOMQuery $document
+   *
+   * @return DOMQuery
+   */
+  protected function prepareDocument(DOMQuery $document) {
+    return $document;
   }
 
   /**
    * Extract event objects from the DOM.
    */
   private function extractEvents() {
-    foreach ($this->document->find($this->calInfo['events']['selector']) as $event_dom) {
-      $this->events[] = new Event($this, $event_dom, $this->calInfo['events']);
+    foreach ($this->documents as $document) {
+      foreach ($document->find($this->calInfo['events']['selector']) as $event_dom) {
+        $this->events[] = new Event($this, $event_dom, $this->calInfo['events']);
+      }
     }
   }
 
@@ -150,6 +164,45 @@ class Calendar {
     else {
       return $this->calInfo;
     }
+  }
+
+
+  public function processTitle(array $values, Event $event) {
+    $joiner = isset($this->calInfo['events']['title']['join']) ? $this->calInfo['events']['title']['join'] : ' ';
+
+    return implode($joiner, $values);
+  }
+
+  public function processDescription(array $values, Event $event) {
+    $joiner = isset($this->calInfo['events']['description']['join']) ? $this->calInfo['events']['description']['join'] : ' ';
+
+    return implode($joiner, $values);
+  }
+
+  public function processLocation(array $values, Event $event) {
+    $joiner = isset($this->calInfo['events']['location']['join']) ? $this->calInfo['events']['location']['join'] : ' ';
+
+    return implode($joiner, $values);
+  }
+  public function processStarttime(array $values, Event $event) {
+    $joiner = isset($this->calInfo['events']['starttime']['join']) ? $this->calInfo['events']['starttime']['join'] : ' ';
+
+    return implode($joiner, $values);
+  }
+  public function processEndtime(array $values, Event $event) {
+    $joiner = isset($this->calInfo['events']['endtime']['join']) ? $this->calInfo['events']['endtime']['join'] : ' ';
+
+    return implode($joiner, $values);
+  }
+  public function processTimezone(array $values, Event $event) {
+    $joiner = isset($this->calInfo['events']['timezone']['join']) ? $this->calInfo['events']['timezone']['join'] : ' ';
+
+    return implode($joiner, $values);
+  }
+  public function processUrl(array $values, Event $event) {
+    $joiner = isset($this->calInfo['events']['url']['join']) ? $this->calInfo['events']['url']['join'] : ' ';
+
+    return implode($joiner, $values);
   }
 
 }
