@@ -43,9 +43,6 @@ class Calendar {
    */
   protected function __construct(array $cal_data) {
     $this->calInfo = $cal_data;
-
-    $this->fetchDocuments();
-    $this->extractEvents();
   }
 
   /**
@@ -57,12 +54,10 @@ class Calendar {
    * @return static|null
    *   A new Calendar object or NULL if the file can't be loaded.
    */
-  public static function create($file) {
+  public static function load($file) {
     try {
       $data = Yaml::parse(file_get_contents($file));
-      $calendar = new static($data);
-
-      return $calendar;
+      return new static($data);
 
     } catch (ParseException $e) {
       printf("Unable to parse the YAML file: %s", $e->getMessage());
@@ -109,6 +104,9 @@ class Calendar {
    * Create the subscribable calendar file.
    */
   public function generateCalendar($dir = '') {
+    $this->fetchDocuments();
+    $this->extractEvents();
+
     $calendar = $this->render();
 
     // Store the URL.
