@@ -159,7 +159,9 @@ class Calendar {
 
     // Build events.
     foreach ($this->events as $event) {
-      $vars['events'][] = $event->render();
+      if ($event->isValid()) {
+        $vars['events'][] = $event->render();
+      }
     }
 
     return $twig->render('ical.twig', $vars);

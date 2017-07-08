@@ -22,6 +22,11 @@ class Event {
   // Used to specify a format to return a date.
   const DATE_FORMAT_ICAL = 'ical';
 
+  // Event status codes.
+  const STATUS_INVALID = 0;
+  const STATUS_ALL_DAY = 1;
+  const STATUS_SCHEDULED = 2;
+
   /**
    * @var Calendar
    */
@@ -91,9 +96,11 @@ class Event {
   private $url = '';
 
   /**
-   * @var bool
+   * The status of the event.
+   *
+   * @var int
    */
-  private $allDay = FALSE;
+  private $status = self::STATUS_INVALID;
 
   /**
    * Event constructor.
@@ -157,7 +164,7 @@ class Event {
    * @return \DateTime|string
    */
   public function getStartTime($format = null) {
-    return $format === self::DATE_FORMAT_ICAL ? $this->formatDateTime($this->startTime, $this->allDay) : $this->startTime;
+    return $format === self::DATE_FORMAT_ICAL ? $this->formatDateTime($this->startTime, $this->status) : $this->startTime;
   }
 
   /**
@@ -169,7 +176,7 @@ class Event {
    * @return \DateTime|string
    */
   public function getEndTime($format = null) {
-    return $format === self::DATE_FORMAT_ICAL ? $this->formatDateTime($this->endTime, $this->allDay) : $this->endTime;
+    return $format === self::DATE_FORMAT_ICAL ? $this->formatDateTime($this->endTime, $this->status) : $this->endTime;
   }
 
   /**
@@ -255,7 +262,7 @@ class Event {
 
     // If no timezone is set, then we don't have a game time yet.
     if ($value === 'TBD') {
-      $this->setAllDay();
+      $this->setStatus(self::STATUS_ALL_DAY);
     }
 
     // Convert 2 char US timezones to standard 3 char abbreviations.
@@ -284,8 +291,14 @@ class Event {
    * @param string|int|\DateTime $value
    */
   public function setStarttime($value) {
+    // If this is a date without a time, set the AllDay flag.  Be careful to
+    // allow midnight as a valid time.
+    if (preg_match('/^\d{4}-?\d{2}-?\d{2}$/', $value)) {
+      $this->setStatus(self::STATUS_ALL_DAY);
+    }
+
     // Handle format YYYY-MM-DDTHH:MM:SSZ.
-    if (is_string($value) && (preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/', $value))) {
+    if (is_string($value) && preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/', $value)) {
       $value = str_replace('T', ' ', $value);
       $value = str_replace('Z', '', $value);
 
@@ -307,7 +320,7 @@ class Event {
     }
     // Default.
     else {
-      $this->startTime = new \DateTime('now', $this->timezone);
+      $this->setStatus(self::STATUS_INVALID);
     }
   }
 
@@ -360,12 +373,16 @@ class Event {
   }
 
   /**
-   * Make an event an all-day event or not.
+   * Set the status of the event.
    *
-   * @param bool $value
+   * @param int $value
    */
-  public function setAllDay($value = TRUE) {
-    $this->allDay = $value;
+  public function setStatus($value) {
+    $this->status = $value;
+  }
+
+  public function isValid() {
+    return in_array($this->status, [self::STATUS_ALL_DAY, self::STATUS_SCHEDULED]);
   }
 
   /**

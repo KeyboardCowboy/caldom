@@ -48,7 +48,7 @@
         },
         {
             "name": "symfony/css-selector",
-            "version": "v2.8.23",
+            "version": "v2.8.24",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/css-selector.git",
