@@ -100,7 +100,7 @@ class Event {
    *
    * @var int
    */
-  private $status = self::STATUS_INVALID;
+  private $status;
 
   /**
    * Event constructor.
@@ -382,7 +382,7 @@ class Event {
   }
 
   public function isValid() {
-    return in_array($this->status, [self::STATUS_ALL_DAY, self::STATUS_SCHEDULED]);
+    return $this->status !== self::STATUS_INVALID;
   }
 
   /**
